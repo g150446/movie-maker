@@ -287,6 +287,35 @@ def concat_clips(clip_paths: list[str], output_path: str):
     print(f"\n[完了] 最終動画 → {output_path}")
 
 
+SECTIONS = [
+    {"name": "01_肩の仕組みと状態", "clips": ["work/clips/clip_03.mp4"]},
+    {"name": "02_腱板断裂",        "clips": ["work/clips/clip_04.mp4"]},
+    {"name": "03_手術の方法",      "clips": [
+        "work/clips/clip_05.mp4",
+        "work/clips/clip_06.mp4",
+        "work/clips/clip_insert_01_腱板修復について.mp4",
+        "work/clips/clip_insert_02_関節唇修復について.mp4",
+    ]},
+    {"name": "04_当日準備",        "clips": ["work/clips/clip_09.mp4"]},
+    {"name": "05_術後の生活",      "clips": ["work/clips/clip_10.mp4"]},
+    {"name": "06_リハビリ",        "clips": ["work/clips/clip_11.mp4"]},
+    {"name": "07_リスク",          "clips": ["work/clips/clip_12.mp4"]},
+    {"name": "08_事前確認",        "clips": ["work/clips/clip_13.mp4"]},
+]
+
+
+def export_sections():
+    """各セクションのサブ動画を output/sections/ に生成"""
+    sections_dir = OUTPUT_DIR / "sections"
+    sections_dir.mkdir(parents=True, exist_ok=True)
+
+    print("\n--- サブセクション動画生成 ---")
+    for section in SECTIONS:
+        output_path = str(sections_dir / f"{section['name']}.mp4")
+        print(f"  セクション: {section['name']}")
+        concat_clips(section["clips"], output_path)
+
+
 def main():
     print("=== 肩手術説明動画 生成開始 ===\n")
 
@@ -347,6 +376,9 @@ def main():
     print("--- Step 5: 全クリップ結合 ---")
     output_path = str(OUTPUT_DIR / "final.mp4")
     concat_clips(clip_paths, output_path)
+
+    # Step 6: サブセクション動画生成
+    export_sections()
 
 
 if __name__ == "__main__":
