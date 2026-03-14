@@ -1,0 +1,29 @@
+# 環境変数・APIキー
+.env
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude IDE設定
+.claude/
+
+# 中間ファイル（再生成可能な大きなバイナリ）
+work/audio/
+work/clips/
+work/slides/
+work/concat_list.txt
+
+# 最終出力動画
+output/
+
+# ソース素材（大容量バイナリ）
+source-movies/
+source-pdf/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
