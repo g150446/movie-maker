@@ -1,7 +1,7 @@
 # 肩手術説明動画 生成スクリプト
 
 PDF スライドとナレーションテキストから、OpenAI TTS + ffmpeg を使ってナレーション付き動画を自動生成します。  
-Alloy（女性声）と Onyx（男性声）の 2 種類の音声で同時に出力します。
+Alloy 音声（`gpt-4o-mini-tts`）で出力します。
 
 ---
 
@@ -90,8 +90,7 @@ python generate.py
 
 | パス | 内容 |
 |------|------|
-| `output/alloy/final.mp4` | Alloy（女性声）版の完成動画 |
-| `output/onyx/final.mp4` | Onyx（男性声）版の完成動画 |
+| `output/alloy/final.mp4` | Alloy 音声版の完成動画 |
 
 ---
 

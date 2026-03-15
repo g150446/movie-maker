@@ -64,8 +64,9 @@ movie-maker/
 | `PDF_PATH` | `source-pdf/...v6.pptx.pdf` | 入力 PDF のパス |
 | `NARRATIONS_PATH` | `source-narrations/...v6.txt` | ナレーション原稿のパス |
 | `PRONUNCIATIONS_PATH` | `source-narrations/pronunciations.md` | 発音辞書のパス |
-| `TTS_MODEL` | `tts-1-hd` | OpenAI TTS モデル |
-| `TTS_VOICES` | `["alloy", "onyx"]` | 生成する音声プリセット一覧 |
+| `TTS_MODEL` | `gpt-4o-mini-tts` | OpenAI TTS モデル |
+| `TTS_VOICES` | `["alloy"]` | 生成する音声プリセット一覧 |
+| `TTS_INSTRUCTIONS` | 日本語医療説明の読み上げ指示 | `gpt-4o-mini-tts` 専用パラメータ |
 | `TTS_SPEED` | `1.08` | 読み上げ速度（1.0 = 通常速度） |
 | `INSERT_PLAYBACK_RATE` | `1.7` | 挿入動画の再生速度倍率 |
 | `INSERT_VIDEO_SPECS` | ページ 10・11 の設定リスト | 挿入動画の定義 |
@@ -104,21 +105,21 @@ python generate.py
 `generate.py` の `TTS_MODEL` を変更します。
 
 ```python
-TTS_MODEL = "tts-1-hd"   # 高品質版（現在）
-# TTS_MODEL = "tts-1"    # 標準版（低コスト）
+TTS_MODEL = "gpt-4o-mini-tts"   # 現在の設定（instructions パラメータ対応）
+# TTS_MODEL = "tts-1-hd"        # 高品質版（instructions 非対応）
+# TTS_MODEL = "tts-1"           # 標準版（instructions 非対応）
 ```
 
 > **注意**: `tts-1-hd` / `tts-1` は `instructions` パラメータを**サポートしません**。  
-> `gpt-4o-mini-tts` などの新世代モデルに切り替える場合は `generate_audio()` 内の API 呼び出しに `instructions=` を追加する必要があります。
+> これらに切り替える場合は `generate_audio()` 内の API 呼び出しから `instructions=TTS_INSTRUCTIONS` を削除してください。
 
 ### 音声プリセットを変更・追加する
 
 `TTS_VOICES` リストを編集します。利用可能な音声: `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
 
 ```python
-TTS_VOICES = ["alloy", "onyx"]   # 現在の設定
-# TTS_VOICES = ["nova"]          # Nova のみ生成
-# TTS_VOICES = ["alloy", "onyx", "nova"]  # 3 種類生成
+TTS_VOICES = ["alloy"]           # 現在の設定
+# TTS_VOICES = ["alloy", "onyx"] # 複数音声を同時生成
 ```
 
 新しい音声を追加した場合、その音声のキャッシュは `work/{voice}/` に作成されます。

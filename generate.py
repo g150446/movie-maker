@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 肩手術説明スライド → ナレーション付き動画 生成スクリプト
-- TTS: OpenAI tts-1-hd（alloy / onyx の2音声を同時生成）
+- TTS: OpenAI gpt-4o-mini-tts（alloy 音声）
 - 動画結合: ffmpeg
 """
 
@@ -49,9 +49,14 @@ YOUTUBE_MAP = {
     "mztWM1LhefK": f"{SOURCE_MOVIES_DIR}/関節唇修復について.mp4",
 }
 
-TTS_MODEL = "tts-1-hd"
-TTS_VOICES = ["alloy", "onyx"]
+TTS_MODEL = "gpt-4o-mini-tts"
+TTS_VOICES = ["alloy"]
 TTS_SPEED = 1.08
+TTS_INSTRUCTIONS = (
+    "日本語の患者向け医療説明として、自然で聞き取りやすく、落ち着いた口調で読み上げてください。"
+    "ただし全体のテンポは通常より少し早めにしてください。"
+    "漢字の読み間違いを避け、特に『しゅじゅつ』『ににんさんきゃく』は正確に発音してください。"
+)
 INSERT_PLAYBACK_RATE = 1.7
 INSERT_VIDEO_SPECS = [
     {
@@ -221,6 +226,7 @@ def generate_audio(asset_id: str, narration_text: str, voice: str, label: str | 
         model=TTS_MODEL,
         voice=voice,
         input=tts_text,
+        instructions=TTS_INSTRUCTIONS,
         speed=TTS_SPEED,
         response_format="mp3",
     ) as response:
