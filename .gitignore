@@ -9,11 +9,7 @@
 .claude/
 
 # 中間ファイル（再生成可能な大きなバイナリ）
-work/audio/
-work/clips/
-work/narrations/
-work/slides/
-work/concat_list.txt
+work/
 
 # 最終出力動画
 output/

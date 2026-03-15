@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
 肩手術説明スライド → ナレーション付き動画 生成スクリプト
-- TTS: OpenAI gpt-4o-mini-tts
+- TTS: OpenAI tts-1-hd（alloy / onyx の2音声を同時生成）
 - 動画結合: ffmpeg
 """
 
-import argparse
 import os
 import re
 import subprocess
@@ -34,8 +33,9 @@ def load_dotenv(path: str = ".env"):
 load_dotenv()
 
 # --- 設定 ---
-PDF_PATH = "source-pdf/肩手術前説明_患者向けスライドv5.pptx.pdf"
-NARRATIONS_PATH = "source-narrations/肩の手術の説明スライドnarrations_allｖ5.txt"
+PDF_PATH = "source-pdf/肩手術前説明_患者向けスライドv6.pptx.pdf"
+NARRATIONS_PATH = "source-narrations/肩の手術の説明スライドnarrations_allｖ6.txt"
+PRONUNCIATIONS_PATH = "source-narrations/pronunciations.md"
 SOURCE_MOVIES_DIR = "source-movies"
 SOURCE_TRANSCRIPTIONS_DIR = Path("source-transcriptions")
 WORK_DIR = Path("work")
@@ -49,13 +49,9 @@ YOUTUBE_MAP = {
     "mztWM1LhefK": f"{SOURCE_MOVIES_DIR}/関節唇修復について.mp4",
 }
 
-TTS_VOICE = "alloy"  # OpenAI TTS voice: alloy, echo, fable, onyx, nova, shimmer
+TTS_MODEL = "tts-1-hd"
+TTS_VOICES = ["alloy", "onyx"]
 TTS_SPEED = 1.08
-TTS_INSTRUCTIONS = (
-    "日本語の患者向け医療説明として、自然で聞き取りやすく、落ち着いた口調で読み上げてください。"
-    "ただし全体のテンポは通常より少し早めにしてください。"
-    "漢字の読み間違いを避け、特に『しゅじゅつ』『ににんさんきゃく』は正確に発音してください。"
-)
 INSERT_PLAYBACK_RATE = 1.7
 INSERT_VIDEO_SPECS = [
     {
@@ -75,8 +71,9 @@ INSERT_VIDEO_SPECS = [
 # --- ディレクトリ準備 ---
 (WORK_DIR / "slides").mkdir(parents=True, exist_ok=True)
 (WORK_DIR / "narrations").mkdir(parents=True, exist_ok=True)
-(WORK_DIR / "audio").mkdir(parents=True, exist_ok=True)
-(WORK_DIR / "clips").mkdir(parents=True, exist_ok=True)
+for _voice in TTS_VOICES:
+    (WORK_DIR / _voice / "audio").mkdir(parents=True, exist_ok=True)
+    (WORK_DIR / _voice / "clips").mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -160,20 +157,32 @@ def generate_narration(page_num: int, narrations: dict[int, str]) -> str:
     return narration
 
 
+def load_pronunciations(path: str) -> dict[str, str]:
+    """pronunciations.mdのMarkdownテーブルから漢字→読み方の対応表を読み込む"""
+    result = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line.startswith("|") or "漢字" in line or "---" in line:
+            continue
+        parts = [p.strip() for p in line.split("|") if p.strip()]
+        if len(parts) >= 2:
+            result[parts[0]] = parts[1]
+    return result
+
+
 def normalize_for_tts(text: str) -> str:
     """TTS用テキスト正規化: 二重読み・誤読を修正"""
     # 漢字（ひらがな）→ ひらがな のみに（括弧内の読みだけ残す）
     # 例: 腱板（けんばん）→ けんばん
     text = re.sub(r'[^\s（）]*（([ぁ-んァ-ン]+)）', r'\1', text)
 
-    # 医療用語の誤読修正（漢字 → 正しいひらがな）
-    TERM_FIXES = {
+    # 医療用語の誤読修正（pronunciations.md + 追加の固定ルール）
+    term_fixes = load_pronunciations(PRONUNCIATIONS_PATH)
+    term_fixes.update({
         "手術": "しゅじゅつ",
-        "関節唇": "かんせつしん",
         "肩峰下除圧術": "けんぽうかじょあつじゅつ",
-        "二人三脚": "ににんさんきゃく",
-    }
-    for kanji, reading in TERM_FIXES.items():
+    })
+    for kanji, reading in term_fixes.items():
         text = text.replace(kanji, reading)
 
     return text
@@ -193,40 +202,40 @@ def is_output_fresh(output_path: str, input_paths: list[str | Path]) -> bool:
     return True
 
 
-def generate_audio(asset_id: str, narration_text: str, label: str | None = None) -> str:
-    """OpenAI TTS (gpt-4o-mini-tts) で音声合成"""
-    audio_path = str(WORK_DIR / "audio" / f"{asset_id}.mp3")
-    cache_text_path = WORK_DIR / "audio" / f"{asset_id}.txt"
+def generate_audio(asset_id: str, narration_text: str, voice: str, label: str | None = None) -> str:
+    """OpenAI TTS (tts-1-hd) で音声合成"""
+    audio_dir = WORK_DIR / voice / "audio"
+    audio_path = str(audio_dir / f"{asset_id}.mp3")
+    cache_text_path = audio_dir / f"{asset_id}.txt"
     label = label or asset_id
     tts_text = normalize_for_tts(narration_text)
 
     if Path(audio_path).exists() and cache_text_path.exists():
         cached_text = cache_text_path.read_text(encoding="utf-8")
         if cached_text == tts_text:
-            print(f"  [TTS] {label} 音声はキャッシュ済みをスキップ")
+            print(f"  [TTS/{voice}] {label} 音声はキャッシュ済みをスキップ")
             return audio_path
 
     client = OpenAI(api_key=OPENAI_API_KEY)
     with client.audio.speech.with_streaming_response.create(
-        model="gpt-4o-mini-tts",
-        voice=TTS_VOICE,
+        model=TTS_MODEL,
+        voice=voice,
         input=tts_text,
-        instructions=TTS_INSTRUCTIONS,
         speed=TTS_SPEED,
         response_format="mp3",
     ) as response:
         response.stream_to_file(audio_path)
     cache_text_path.write_text(tts_text, encoding="utf-8")
-    print(f"  [TTS] {label} 音声生成完了 → {audio_path}")
+    print(f"  [TTS/{voice}] {label} 音声生成完了 → {audio_path}")
     return audio_path
 
 
-def make_slide_clip(page_num: int, image_path: str, audio_path: str) -> str:
+def make_slide_clip(page_num: int, image_path: str, audio_path: str, voice: str) -> str:
     """PNG + MP3 → MP4クリップ（音声長に合わせた静止画動画）"""
-    clip_path = str(WORK_DIR / "clips" / f"clip_{page_num:02d}.mp4")
+    clip_path = str(WORK_DIR / voice / "clips" / f"clip_{page_num:02d}.mp4")
 
     if is_output_fresh(clip_path, [image_path, audio_path]):
-        print(f"  [ffmpeg] ページ {page_num} クリップはキャッシュ済みをスキップ")
+        print(f"  [ffmpeg/{voice}] ページ {page_num} クリップはキャッシュ済みをスキップ")
         return clip_path
 
     cmd = [
@@ -242,33 +251,10 @@ def make_slide_clip(page_num: int, image_path: str, audio_path: str) -> str:
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"  [ffmpeg] エラー: {result.stderr[-500:]}", file=sys.stderr)
+        print(f"  [ffmpeg/{voice}] エラー: {result.stderr[-500:]}", file=sys.stderr)
         raise RuntimeError(f"ffmpeg failed for page {page_num}")
-    print(f"  [ffmpeg] ページ {page_num} クリップ作成完了 → {clip_path}")
+    print(f"  [ffmpeg/{voice}] ページ {page_num} クリップ作成完了 → {clip_path}")
     return clip_path
-
-
-def scale_mp4(src_path: str, dst_path: str) -> str:
-    """既存MP4を1920x1080にスケール（アスペクト比維持・レターボックス）"""
-    if is_output_fresh(dst_path, [src_path]):
-        print(f"  [ffmpeg] スケール済みクリップをスキップ: {dst_path}")
-        return dst_path
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", src_path,
-        "-c:v", "libx264",
-        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k",
-        "-pix_fmt", "yuv420p",
-        "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2",
-        dst_path,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  [ffmpeg] スケールエラー: {result.stderr[-500:]}", file=sys.stderr)
-        raise RuntimeError(f"ffmpeg scale failed for {src_path}")
-    print(f"  [ffmpeg] スケール完了 → {dst_path}")
-    return dst_path
 
 
 def get_media_duration(path: str) -> float:
@@ -286,19 +272,20 @@ def get_media_duration(path: str) -> float:
     return float(result.stdout.strip())
 
 
-def make_insert_clip(spec: dict) -> str:
+def make_insert_clip(spec: dict, voice: str) -> str:
     """挿入動画を無音1.7倍速＋日本語ナレーション付きクリップに変換"""
-    clip_path = str(WORK_DIR / "clips" / f"{spec['clip_stem']}.mp4")
+    clip_path = str(WORK_DIR / voice / "clips" / f"{spec['clip_stem']}.mp4")
 
     narration_text = spec["script_path"].read_text(encoding="utf-8").strip()
     audio_path = generate_audio(
         f"{spec['clip_stem']}_audio",
         narration_text,
+        voice,
         f"挿入動画ページ {spec['page_num']}",
     )
 
     if is_output_fresh(clip_path, [spec["source_mp4"], spec["script_path"], audio_path]):
-        print(f"  [ffmpeg] 挿入動画クリップをスキップ: {clip_path}")
+        print(f"  [ffmpeg/{voice}] 挿入動画クリップをスキップ: {clip_path}")
         return clip_path
 
     source_duration = get_media_duration(spec["source_mp4"])
@@ -336,9 +323,9 @@ def make_insert_clip(spec: dict) -> str:
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"  [ffmpeg] 挿入動画変換エラー: {result.stderr[-500:]}", file=sys.stderr)
+        print(f"  [ffmpeg/{voice}] 挿入動画変換エラー: {result.stderr[-500:]}", file=sys.stderr)
         raise RuntimeError(f"ffmpeg insert clip failed for {spec['source_mp4']}")
-    print(f"  [ffmpeg] 挿入動画クリップ作成完了 → {clip_path}")
+    print(f"  [ffmpeg/{voice}] 挿入動画クリップ作成完了 → {clip_path}")
     return clip_path
 
 
@@ -372,56 +359,39 @@ def concat_clips(clip_paths: list[str], output_path: str):
     print(f"\n[完了] 最終動画 → {output_path}")
 
 
-SECTIONS = [
-    {"name": "01_肩の仕組みと状態", "clips": [
-        "work/clips/clip_03.mp4",
-        "work/clips/clip_07.mp4",
-    ]},
-    {"name": "02_腱板断裂", "clips": [
-        "work/clips/clip_04.mp4",
-        "work/clips/clip_05.mp4",
-        "work/clips/clip_06.mp4",
-    ]},
-    {"name": "03_手術の方法", "clips": [
-        "work/clips/clip_08.mp4",
-        "work/clips/clip_09.mp4",
-        "work/clips/clip_insert_01_腱板修復について.mp4",
-        "work/clips/clip_insert_02_関節唇修復について.mp4",
-    ]},
-    {"name": "04_当日準備",  "clips": ["work/clips/clip_12.mp4"]},
-    {"name": "05_術後の生活","clips": ["work/clips/clip_13.mp4"]},
-    {"name": "06_リハビリ",  "clips": ["work/clips/clip_14.mp4"]},
-    {"name": "07_リスク",    "clips": ["work/clips/clip_15.mp4"]},
-    {"name": "08_事前確認",  "clips": ["work/clips/clip_16.mp4"]},
-]
 
+def build_voice(voice: str, pages: list, narrations: dict, insert_specs_by_page: dict, skip_pages: set):
+    """1つの音声プリセットで全クリップを生成し、最終動画を出力する"""
+    print(f"\n=== 音声: {voice} ===")
+    voice_output_dir = OUTPUT_DIR / voice
+    voice_output_dir.mkdir(parents=True, exist_ok=True)
 
-def export_sections():
-    """各セクションのサブ動画を output/sections/ に生成"""
-    sections_dir = OUTPUT_DIR / "sections"
-    sections_dir.mkdir(parents=True, exist_ok=True)
+    clip_paths: list[str] = []
 
-    print("\n--- サブセクション動画生成 ---")
-    for section in SECTIONS:
-        output_path = str(sections_dir / f"{section['name']}.mp4")
-        print(f"  セクション: {section['name']}")
-        concat_clips(section["clips"], output_path)
+    for page in pages:
+        page_num = page["page_num"]
 
+        if page_num in skip_pages:
+            print(f"--- [{voice}] ページ {page_num} は挿入動画を処理中 ---")
+            clip_paths.append(make_insert_clip(insert_specs_by_page[page_num], voice))
+            print()
+            continue
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="肩手術説明スライドからナレーション付き動画を生成します。"
-    )
-    parser.add_argument(
-        "--export-sections",
-        action="store_true",
-        help="セクションごとの動画も output/sections/ に出力します。",
-    )
-    return parser.parse_args()
+        print(f"--- [{voice}] ページ {page_num} 処理中 ---")
+
+        narration = generate_narration(page_num, narrations)
+        audio_path = generate_audio(f"page_{page_num:02d}", narration, voice, f"ページ {page_num}")
+        clip = make_slide_clip(page_num, page["image_path"], audio_path, voice)
+        clip_paths.append(clip)
+
+        print()
+
+    print(f"--- [{voice}] 全クリップ結合 ---")
+    output_path = str(voice_output_dir / "final.mp4")
+    concat_clips(clip_paths, output_path)
 
 
 def main():
-    args = parse_args()
     print("=== 肩手術説明動画 生成開始 ===\n")
 
     if not OPENAI_API_KEY:
@@ -433,51 +403,21 @@ def main():
     narrations = load_narrations(NARRATIONS_PATH)
     print(f"  合計 {len(narrations)} ページ分のナレーション読み込み完了\n")
 
-    # Step 2: PDF解析
+    # Step 2: PDF解析（スライド画像は全音声共通）
     print("--- Step 2: PDF解析 ---")
     pages = parse_pdf(PDF_PATH)
     print(f"  合計 {len(pages)} ページ検出\n")
 
-    # ページ10・11は挿入動画クリップで置き換える（スライド・通常ナレーションをスキップ）
     insert_specs_by_page = {spec["page_num"]: spec for spec in INSERT_VIDEO_SPECS}
     skip_pages = set(insert_specs_by_page)
 
-    clip_paths: list[str] = []
+    # Step 3〜6: 音声ごとにクリップ生成・結合
+    for voice in TTS_VOICES:
+        build_voice(voice, pages, narrations, insert_specs_by_page, skip_pages)
 
-    for page in pages:
-        page_num = page["page_num"]
-
-        # ページ10・11は英語音声を使わず、日本語ナレーション付き挿入動画へ置換
-        if page_num in skip_pages:
-            print(f"--- ページ {page_num} は挿入動画を処理中 ---")
-            clip_paths.append(make_insert_clip(insert_specs_by_page[page_num]))
-            print()
-            continue
-
-        print(f"--- ページ {page_num} 処理中 ---")
-
-        # Step 3: ナレーション取得
-        narration = generate_narration(page_num, narrations)
-
-        # Step 4: TTS音声生成
-        audio_path = generate_audio(f"page_{page_num:02d}", narration, f"ページ {page_num}")
-
-        # Step 5: スライドクリップ作成
-        clip = make_slide_clip(page_num, page["image_path"], audio_path)
-        clip_paths.append(clip)
-
-        print()
-
-    # Step 6: 全クリップ結合
-    print("--- Step 6: 全クリップ結合 ---")
-    output_path = str(OUTPUT_DIR / "final.mp4")
-    concat_clips(clip_paths, output_path)
-
-    # Step 7: サブセクション動画生成（オプション）
-    if args.export_sections:
-        export_sections()
-    else:
-        print("--- Step 7: サブセクション動画生成はスキップ（--export-sections で有効化） ---")
+    print("\n=== すべての音声の動画生成が完了しました ===")
+    for voice in TTS_VOICES:
+        print(f"  {voice}: {OUTPUT_DIR / voice / 'final.mp4'}")
 
 
 if __name__ == "__main__":
