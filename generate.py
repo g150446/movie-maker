@@ -190,6 +190,11 @@ def normalize_for_tts(text: str) -> str:
     for kanji, reading in term_fixes.items():
         text = text.replace(kanji, reading)
 
+    # 句点直後にひらがなが来る場合、改行を挿入して文区切りを明確化。
+    # 「進めます。しゅじゅつから」→「進めます。\nしゅじゅつから」
+    # ひらがな置換後の文頭でTTSが前フレーズを繰り返す誤動作を防ぐ。
+    text = re.sub(r'。([ぁ-ん])', r'。\n\1', text)
+
     return text
 
 
