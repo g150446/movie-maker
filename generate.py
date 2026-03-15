@@ -215,9 +215,10 @@ def generate_audio(asset_id: str, narration_text: str, voice: str, label: str | 
     label = label or asset_id
     tts_text = normalize_for_tts(narration_text)
 
+    cache_key = f"model={TTS_MODEL}\n{tts_text}"
     if Path(audio_path).exists() and cache_text_path.exists():
         cached_text = cache_text_path.read_text(encoding="utf-8")
-        if cached_text == tts_text:
+        if cached_text == cache_key:
             print(f"  [TTS/{voice}] {label} 音声はキャッシュ済みをスキップ")
             return audio_path
 
@@ -231,7 +232,7 @@ def generate_audio(asset_id: str, narration_text: str, voice: str, label: str | 
         response_format="mp3",
     ) as response:
         response.stream_to_file(audio_path)
-    cache_text_path.write_text(tts_text, encoding="utf-8")
+    cache_text_path.write_text(cache_key, encoding="utf-8")
     print(f"  [TTS/{voice}] {label} 音声生成完了 → {audio_path}")
     return audio_path
 
