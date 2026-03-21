@@ -15,8 +15,12 @@ work/
 output/
 
 # ソース素材（大容量バイナリ）
+original-movies/
 source-movies/
 source-pdf/
+
+# 生成物（スクリプトで再生成可能）
+source-transcriptions/
 
 # Python
 __pycache__/
