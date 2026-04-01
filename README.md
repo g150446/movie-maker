@@ -1,115 +1,275 @@
-# 肩手術説明動画 生成スクリプト
+# 肩手術説明動画 生成スクリプト — はじめてのセットアップガイド
 
-PDF スライドとナレーションテキストから、OpenAI TTS + ffmpeg を使ってナレーション付き動画を自動生成します。  
-Alloy 音声（`gpt-4o-mini-tts`）で出力します。
+このリポジトリを使うと、PDF スライドとナレーションテキストから **ナレーション付き説明動画** を自動生成できます。  
+このガイドでは、プログラミング未経験の方が **Claude Code（AI コーディングアシスタント）** を使ってこのツールをセットアップし、操作できるようになるまでの手順を説明します。
 
----
-
-## 前提条件
-
-| ツール | バージョン目安 |
-|--------|--------------|
-| Python | 3.11 以上 |
-| ffmpeg | 5.x 以上（`ffmpeg`, `ffprobe` が PATH に通っていること） |
-| OpenAI API キー | `tts-1-hd` モデルの利用権限があること |
+> 📁 技術的な詳細情報は [`docs/README_technical.md`](docs/README_technical.md) を、保守・運用ガイドは [`docs/maintenance.md`](docs/maintenance.md) をご覧ください。
 
 ---
 
-## セットアップ
+## このツールでできること
+
+- PDF スライドの各ページに音声（ナレーション）を付けた動画を自動生成
+- 指定した手術動画を途中に挿入
+- OpenAI の音声合成（TTS）を使って自然な日本語音声を生成
+
+---
+
+## Step 1: Anthropic アカウントの作成
+
+Claude Code を使うには **Anthropic のアカウント** が必要です。
+
+1. ブラウザで [https://console.anthropic.com](https://console.anthropic.com) を開く
+2. 「Sign up」をクリックしてメールアドレスとパスワードを登録
+3. 届いた確認メールのリンクをクリックして認証を完了
+4. ログイン後、左メニューの **「API Keys」** から新しい API キーを発行しておく（後の手順で使います）
+
+> 💡 Claude Code の利用には Anthropic のサブスクリプション（Claude Pro / Max など）または API クレジットが必要です。  
+> [https://www.anthropic.com/pricing](https://www.anthropic.com/pricing) で料金プランをご確認ください。
+
+---
+
+## Step 2: Git のインストール
+
+ソースコードをダウンロードするために **Git** が必要です。
+
+### Mac の場合
+
+ターミナルを開いて以下を実行してください（初回のみ自動でインストールされます）：
 
 ```bash
-# 1. リポジトリクローン
+git --version
+```
+
+「Command Line Tools」のインストール確認ダイアログが表示された場合は「インストール」をクリックしてください。  
+すでにインストール済みの場合はバージョンが表示されます。
+
+### Windows の場合
+
+1. [https://git-scm.com/download/win](https://git-scm.com/download/win) を開く
+2. 「64-bit Git for Windows Setup」をダウンロードしてインストール
+3. インストール中の選択肢はすべてデフォルトのままで OK
+4. インストール完了後、スタートメニューから **「Git Bash」** を起動して以下を確認：
+
+```bash
+git --version
+```
+
+バージョン番号が表示されれば成功です。
+
+---
+
+## Step 3: Node.js のインストール
+
+Claude Code は Node.js が必要です。
+
+### Mac の場合
+
+```bash
+# Homebrew がない場合はまずインストール
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Node.js をインストール
+brew install node
+```
+
+### Windows の場合
+
+1. [https://nodejs.org/](https://nodejs.org/) を開く
+2. 「LTS（推奨版）」をダウンロードしてインストール
+3. インストール中の選択肢はすべてデフォルトのままで OK
+
+---
+
+## Step 4: Claude Code のインストール
+
+### Mac の場合
+
+ターミナルで以下を実行：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### Windows の場合
+
+Git Bash（またはコマンドプロンプト）で以下を実行：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+### ログイン
+
+インストール後、以下のコマンドを実行してブラウザで Anthropic アカウントにログインします：
+
+```bash
+claude login
+```
+
+ブラウザが自動で開くので、Anthropic アカウントでログインしてください。
+
+---
+
+## Step 5: リポジトリのクローン（ダウンロード）
+
+### Mac の場合
+
+ターミナルで以下を実行：
+
+```bash
 git clone https://github.com/g150446/movie-maker.git
 cd movie-maker
+```
 
-# 2. 仮想環境を作成・有効化
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+### Windows の場合
 
-# 3. 依存パッケージをインストール
-pip install openai pymupdf
+Git Bash で以下を実行：
 
-# 4. APIキーを設定
-cp .env.example .env       # .env.example がない場合は下記を参考に作成
-echo 'OPENAI_API_KEY=sk-...' > .env
+```bash
+git clone https://github.com/g150446/movie-maker.git
+cd movie-maker
 ```
 
 ---
 
-## 実行方法
+## Step 6: Python のインストール確認
+
+### Mac の場合
+
+```bash
+python3 --version
+```
+
+バージョンが **3.11 以上** であれば OK です。  
+インストールされていない場合は [https://www.python.org/downloads/](https://www.python.org/downloads/) からダウンロードしてください。
+
+### Windows の場合
+
+Git Bash またはコマンドプロンプトで：
+
+```bash
+python --version
+```
+
+インストールされていない場合は [https://www.python.org/downloads/](https://www.python.org/downloads/) からダウンロードしてください。  
+インストール時に **「Add Python to PATH」にチェックを入れる** のを忘れずに！
+
+---
+
+## Step 7: ffmpeg のインストール
+
+動画・音声の変換に **ffmpeg** が必要です。
+
+### Mac の場合
+
+```bash
+brew install ffmpeg
+```
+
+### Windows の場合
+
+```bash
+winget install Gyan.FFmpeg
+```
+
+> winget がない場合は [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html) から手動でダウンロードし、PATH を設定してください。
+
+インストール後、以下で確認：
+
+```bash
+ffmpeg -version
+```
+
+---
+
+## Step 8: プロジェクトのセットアップ
+
+### Mac の場合
+
+```bash
+# 仮想環境の作成と有効化
+python3 -m venv venv
+source venv/bin/activate
+
+# 依存パッケージのインストール
+pip install openai pymupdf
+```
+
+### Windows の場合
+
+Git Bash で：
+
+```bash
+# 仮想環境の作成と有効化
+python -m venv venv
+source venv/Scripts/activate
+
+# 依存パッケージのインストール
+pip install openai pymupdf
+```
+
+---
+
+## Step 9: OpenAI API キーの設定
+
+このツールは音声合成に **OpenAI の API** を使用します。  
+[https://platform.openai.com/api-keys](https://platform.openai.com/api-keys) から API キーを取得してください。
+
+リポジトリのフォルダ内に `.env` というファイルを作成し、以下の内容を記入します：
+
+```
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+> ⚠️ `sk-...` の部分はご自身の API キーに置き換えてください。  
+> `.env` ファイルは外部に公開しないよう注意してください（Git には含まれません）。
+
+---
+
+## Step 10: Claude Code で操作する
+
+セットアップが完了したら、**Claude Code** を使ってプロジェクトを AI と一緒に操作できます。  
+リポジトリのフォルダ内で以下のコマンドを実行してください：
+
+### Mac の場合
 
 ```bash
 source venv/bin/activate
-python generate.py
+claude
 ```
 
-実行すると以下の処理が順に行われます。
-
-1. ナレーションテキストを読み込む
-2. PDF を解析してスライド画像を生成（`work/slides/`）
-3. Alloy・Onyx それぞれの音声で TTS 音声を生成（`work/{voice}/audio/`）
-4. 各ページのスライドクリップを作成（`work/{voice}/clips/`）
-5. 全クリップを結合して最終動画を出力（`output/{voice}/final.mp4`）
-
----
-
-## 入力ファイル
-
-| パス | 説明 |
-|------|------|
-| `source-pdf/肩手術前説明_患者向けスライドv6.pptx.pdf` | スライド PDF（ページ画像の元データ） |
-| `source-narrations/肩の手術の説明スライドnarrations_allｖ6.txt` | ナレーション原稿（`【ページ N】` 区切り） |
-| `source-narrations/pronunciations.md` | 漢字の読み方辞書（Markdown テーブル形式） |
-| `source-movies/腱板修復について.mp4` | ページ 10 に挿入する手術動画 |
-| `source-movies/関節唇修復について.mp4` | ページ 11 に挿入する手術動画 |
-| `source-transcriptions/腱板修復について_患者向けv5.txt` | ページ 10 挿入動画のナレーション原稿 |
-| `source-transcriptions/関節唇修復について_患者向けv5.txt` | ページ 11 挿入動画のナレーション原稿 |
-
-### ナレーションファイルの形式
-
-```
-【ページ 1】
-ここに 1 ページ目のナレーション本文を書きます。
-
-【ページ 2】
-2 ページ目のナレーション本文。
-```
-
-### pronunciations.md の形式
-
-```markdown
-| 漢字 | 読み方 |
-|------|--------|
-| 腱板 | けんばん |
-| 関節唇 | かんせつしん |
-```
-
----
-
-## 出力ファイル
-
-| パス | 内容 |
-|------|------|
-| `output/alloy/final.mp4` | Alloy 音声版の完成動画 |
-
----
-
-## キャッシュについて
-
-生成済みの音声ファイル（`.mp3`）とクリップ（`.mp4`）はキャッシュされ、同一テキスト・同一入力ファイルであれば再生成をスキップします。  
-ソースファイルを更新した場合や音声を完全に再生成したい場合は、対応する `work/` ディレクトリを削除してください。
+### Windows の場合
 
 ```bash
-# キャッシュを全削除して最初から再生成
-rm -rf work/alloy work/onyx work/slides work/narrations
+source venv/Scripts/activate
+claude
 ```
+
+Claude Code が起動したら、日本語で自由に指示を入力できます。
+
+### 指示の例
+
+```
+動画を生成してください
+```
+
+```
+2つ目の挿入動画（関節唇修復について）のスピードを1倍に戻してください
+```
+
+```
+ナレーションのテキストを変更したので、キャッシュをクリアして動画を再生成してください
+```
+
+> 💡 Claude Code はこのリポジトリのコードを理解して、必要な変更や実行を自動で行います。  
+> わからないことは「〇〇はどうすればいいですか？」と聞くだけで大丈夫です。
 
 ---
 
-## 環境変数
+## 詳細情報
 
-| 変数名 | 説明 |
-|--------|------|
-| `OPENAI_API_KEY` | OpenAI の API キー（必須） |
-
-`.env` ファイルに記載するか、環境変数として事前にエクスポートしてください。
+| ドキュメント | 内容 |
+|-------------|------|
+| [`docs/README_technical.md`](docs/README_technical.md) | 入力ファイル形式・出力先・設定項目の詳細 |
+| [`docs/maintenance.md`](docs/maintenance.md) | アーキテクチャ・バージョンアップ・トラブルシューティング |

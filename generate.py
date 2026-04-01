@@ -33,8 +33,8 @@ def load_dotenv(path: str = ".env"):
 load_dotenv()
 
 # --- 設定 ---
-PDF_PATH = "source-pdf/肩手術前説明_患者向けスライドv6.pptx.pdf"
-NARRATIONS_PATH = "source-narrations/肩の手術の説明スライドnarrations_allｖ6.txt"
+PDF_PATH = "source-pdf/肩手術前説明_患者向けスライドv9.pptx.pdf"
+NARRATIONS_PATH = "source-narrations/肩の手術の説明スライドnarrations_allｖ9.txt"
 PRONUNCIATIONS_PATH = "source-narrations/pronunciations.md"
 SOURCE_MOVIES_DIR = "source-movies"
 SOURCE_TRANSCRIPTIONS_DIR = Path("source-transcriptions")
@@ -50,7 +50,7 @@ YOUTUBE_MAP = {
 }
 
 TTS_MODEL = "gpt-4o-mini-tts"
-TTS_VOICES = ["alloy"]
+TTS_VOICES = ["sage"]
 TTS_SPEED = 1.08
 TTS_INSTRUCTIONS = (
     "日本語の患者向け医療説明として、自然で聞き取りやすく、落ち着いた口調で読み上げてください。"
