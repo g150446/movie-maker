@@ -15,9 +15,13 @@ work/
 output/
 
 # ソース素材（大容量バイナリ）
-original-movies/
-source-movies/
-source-pdf/
+# ディレクトリ自体は管理し、中のファイルのみ無視
+original-movies/**/*
+!original-movies/.gitkeep
+source-movies/**/*
+!source-movies/.gitkeep
+source-pdf/**/*
+!source-pdf/.gitkeep
 
 # 生成物（スクリプトで再生成可能）
 source-transcriptions/
