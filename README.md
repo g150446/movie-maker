@@ -15,16 +15,16 @@
 
 ---
 
-## Step 1: Anthropic アカウントの作成
+## Step 1: Anthropic アカウントの作成と Pro サブスクリプションへの登録
 
-Claude Code を使うには **Anthropic のアカウント** が必要です。
+Claude Code を使うには **Anthropic のアカウント** と **Pro サブスクリプション** が必要です。
 
 1. ブラウザで [https://console.anthropic.com](https://console.anthropic.com) を開く
 2. 「Sign up」をクリックしてメールアドレスとパスワードを登録
 3. 届いた確認メールのリンクをクリックして認証を完了
-4. ログイン後、左メニューの **「API Keys」** から新しい API キーを発行しておく（後の手順で使います）
+4. ログイン後、左メニューの **「Subscriptions」** から **Pro プラン** に登録
 
-> 💡 Claude Code の利用には Anthropic のサブスクリプション（Claude Pro / Max など）または API クレジットが必要です。  
+> 💡 Claude Code の利用には Anthropic のサブスクリプション（Claude Pro / Max など）が必要です。
 > [https://www.anthropic.com/pricing](https://www.anthropic.com/pricing) で料金プランをご確認ください。
 
 ---
@@ -211,23 +211,7 @@ pip install openai pymupdf
 
 ---
 
-## Step 9: OpenAI API キーの設定
-
-このツールは音声合成に **OpenAI の API** を使用します。  
-[https://platform.openai.com/api-keys](https://platform.openai.com/api-keys) から API キーを取得してください。
-
-リポジトリのフォルダ内に `.env` というファイルを作成し、以下の内容を記入します：
-
-```
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-> ⚠️ `sk-...` の部分はご自身の API キーに置き換えてください。  
-> `.env` ファイルは外部に公開しないよう注意してください（Git には含まれません）。
-
----
-
-## Step 10: Claude Code で操作する
+## Step 9: Claude Code で操作する
 
 セットアップが完了したら、**Claude Code** を使ってプロジェクトを AI と一緒に操作できます。  
 リポジトリのフォルダ内で以下のコマンドを実行してください：
